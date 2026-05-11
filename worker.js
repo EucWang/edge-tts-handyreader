@@ -1,5 +1,6 @@
 // Edge TTS API Proxy - Minimal Version with Test UI
 
+const MAX_TEXT_LENGTH = 1200;
 const TOKEN_REFRESH_BEFORE_EXPIRY = 5 * 60;
 const OPENAI_VOICE_MAP = {
   shimmer: "zh-CN-XiaoxiaoNeural",
@@ -9,6 +10,180 @@ const OPENAI_VOICE_MAP = {
   nova: "zh-CN-YunxiNeural",
   echo: "zh-CN-liaoning-XiaobeiNeural",
 };
+
+const LANG_VOICES = {
+  "zh": "zh-CN-XiaoxiaoNeural",
+  "en": "en-US-JennyNeural",
+  "fr": "fr-FR-DeniseNeural",
+  "de": "de-DE-KatjaNeural",
+  "pt": "pt-BR-FranciscaNeural",
+  "es": "es-ES-ElviraNeural",
+  "hi": "hi-IN-SwaraNeural",
+  "ja": "ja-JP-NanamiNeural",
+  "ko": "ko-KR-SunHiNeural",
+  "ru": "ru-RU-SvetlanaNeural",
+  "it": "it-IT-ElsaNeural",
+  "nl": "nl-NL-ColetteNeural",
+  "pl": "pl-PL-AgnieszkaNeural",
+  "tr": "tr-TR-EmelNeural",
+  "ar": "ar-SA-ZariyahNeural",
+  "th": "th-TH-PremwadeeNeural",
+  "vi": "vi-VN-HoaiMyNeural",
+  "id": "id-ID-GadisNeural",
+  "sv": "sv-SE-SofieNeural",
+  "da": "da-DK-ChristelNeural",
+  "fi": "fi-FI-SelmaNeural",
+  "no": "nb-NO-IselinNeural",
+  "el": "el-GR-AthinaNeural",
+  "cs": "cs-CZ-VlastaNeural",
+  "ro": "ro-RO-AlinaNeural",
+  "hu": "hu-HU-NoemiNeural",
+  "uk": "uk-UA-PolinaNeural",
+  "he": "he-IL-HilaNeural",
+  "ms": "ms-MY-YasminNeural",
+  "ta": "ta-IN-PallaviNeural",
+  "te": "te-IN-ShrutiNeural",
+  "bn": "bn-IN-TanishaaNeural",
+  "mr": "mr-IN-AarohiNeural",
+  "gu": "gu-IN-DhwaniNeural",
+  "kn": "kn-IN-SapnaNeural",
+  "ml": "ml-IN-SobhanaNeural",
+  "pa": "pa-IN-VaaniNeural",
+  "yue": "yue-CN-XiaoMinNeural",
+  "bg": "bg-BG-KalinaNeural",
+  "hr": "hr-HR-GabrijelaNeural",
+  "sk": "sk-SK-ViktoriaNeural",
+  "sl": "sl-SI-PetraNeural",
+  "et": "et-EE-AnuNeural",
+  "lv": "lv-LV-EveritaNeural",
+  "lt": "lt-LT-OnaNeural",
+  "sr": "sr-RS-SophieNeural",
+  "ca": "ca-ES-JoanaNeural",
+  "fil": "fil-PH-BlessicaNeural",
+};
+
+const LOCALE_VOICES = {
+  "zh-tw": "zh-TW-HsiaoChenNeural",
+  "zh-hk": "zh-HK-HiuGaaiNeural",
+  "en-gb": "en-GB-SoniaNeural",
+  "en-au": "en-AU-NatashaNeural",
+  "en-in": "en-IN-NeerjaNeural",
+  "en-ca": "en-CA-ClaraNeural",
+  "fr-ca": "fr-CA-SylvieNeural",
+  "de-at": "de-AT-IngridNeural",
+  "de-ch": "de-CH-LeniNeural",
+  "pt-pt": "pt-PT-RaquelNeural",
+  "es-mx": "es-MX-DaliaNeural",
+  "ar-eg": "ar-EG-SalmaNeural",
+  "nb-no": "nb-NO-IselinNeural",
+};
+
+const LANG_TO_LOCALE = {
+  "zh": "zh-CN",
+  "en": "en-US",
+  "fr": "fr-FR",
+  "de": "de-DE",
+  "pt": "pt-BR",
+  "es": "es-ES",
+  "hi": "hi-IN",
+  "ja": "ja-JP",
+  "ko": "ko-KR",
+  "ru": "ru-RU",
+  "it": "it-IT",
+  "nl": "nl-NL",
+  "pl": "pl-PL",
+  "tr": "tr-TR",
+  "ar": "ar-SA",
+  "th": "th-TH",
+  "vi": "vi-VN",
+  "id": "id-ID",
+  "sv": "sv-SE",
+  "da": "da-DK",
+  "fi": "fi-FI",
+  "no": "nb-NO",
+  "el": "el-GR",
+  "cs": "cs-CZ",
+  "ro": "ro-RO",
+  "hu": "hu-HU",
+  "uk": "uk-UA",
+  "he": "he-IL",
+  "ms": "ms-MY",
+  "ta": "ta-IN",
+  "te": "te-IN",
+  "bn": "bn-IN",
+  "mr": "mr-IN",
+  "gu": "gu-IN",
+  "kn": "kn-IN",
+  "ml": "ml-IN",
+  "pa": "pa-IN",
+  "yue": "yue-CN",
+  "bg": "bg-BG",
+  "hr": "hr-HR",
+  "sk": "sk-SK",
+  "sl": "sl-SI",
+  "et": "et-EE",
+  "lv": "lv-LV",
+  "lt": "lt-LT",
+  "sr": "sr-RS",
+  "ca": "ca-ES",
+  "fil": "fil-PH",
+};
+
+function inferLang(voiceName) {
+  var match = voiceName && voiceName.match(/^([a-z]{2,3}-[A-Z]{2})/);
+  return match ? match[1] : null;
+}
+
+function lookupVoice(langKey) {
+  if (!langKey) return null;
+  if (LOCALE_VOICES[langKey]) return LOCALE_VOICES[langKey];
+  if (LANG_VOICES[langKey]) return LANG_VOICES[langKey];
+  var shortCode = langKey.split("-")[0];
+  if (shortCode !== langKey && LANG_VOICES[shortCode]) return LANG_VOICES[shortCode];
+  return null;
+}
+
+function isPresetVoice(name) {
+  return name && !!OPENAI_VOICE_MAP[name];
+}
+
+function resolveVoiceAndLang(model, voice, language) {
+  var langLower = typeof language === "string" && language.trim() ? language.trim().toLowerCase() : "";
+  var langVoice = lookupVoice(langLower);
+  var finalVoice;
+
+  if (voice && isPresetVoice(voice)) {
+    if (langLower && langVoice) {
+      finalVoice = langVoice;
+    } else {
+      finalVoice = OPENAI_VOICE_MAP[voice];
+    }
+  } else if (voice) {
+    finalVoice = voice;
+  } else if (langLower && langVoice) {
+    finalVoice = langVoice;
+  } else {
+    if (model === "tts-1" || model === "tts-1-hd") {
+      finalVoice = "zh-CN-XiaoxiaoNeural";
+    } else if (model.startsWith("tts-1-")) {
+      finalVoice = OPENAI_VOICE_MAP[model.replace("tts-1-", "")] || "zh-CN-XiaoxiaoNeural";
+    } else {
+      finalVoice = model || "zh-CN-XiaoxiaoNeural";
+    }
+  }
+
+  var xmlLang;
+  if (langLower && LANG_TO_LOCALE[langLower]) {
+    xmlLang = LANG_TO_LOCALE[langLower];
+  } else if (langLower && /^[a-z]{2,3}-[a-z]{2,3}$/.test(langLower)) {
+    var parts = langLower.split("-");
+    xmlLang = parts[0].toLowerCase() + "-" + parts[1].toUpperCase();
+  } else {
+    xmlLang = inferLang(finalVoice) || "zh-CN";
+  }
+
+  return { voice: finalVoice, lang: xmlLang };
+}
 
 let tokenInfo = { endpoint: null, token: null, expiredAt: null };
 
@@ -37,6 +212,7 @@ function timingSafeEqual(a, b) {
 export default {
   async fetch(request, env) {
     if (env.API_KEY) globalThis.API_KEY = env.API_KEY;
+    if (env.MAX_TEXT_LENGTH) globalThis.MAX_TEXT_LENGTH = parseInt(env.MAX_TEXT_LENGTH, 10);
     return await handleRequest(request);
   },
 };
@@ -45,7 +221,7 @@ async function handleRequest(request) {
   var url = new URL(request.url);
 
   if (url.pathname === "/" || url.pathname === "/index.html") {
-    return new Response(getTestPageHTML(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    return errorResponse("Not Found", 404, "not_found");
   }
 
   if (request.method === "OPTIONS") {
@@ -91,6 +267,15 @@ async function handleSpeechRequest(request) {
   var body = await request.json();
   if (!body.input) return errorResponse("'input' is a required parameter.", 400, "invalid_request_error");
 
+  var maxLength = globalThis.MAX_TEXT_LENGTH || MAX_TEXT_LENGTH;
+  if (body.input.length > maxLength) {
+    return errorResponse(
+      "Input text exceeds maximum length of " + maxLength + " characters. Current: " + body.input.length,
+      400,
+      "text_too_long"
+    );
+  }
+
   var model = body.model || "tts-1";
   var input = body.input;
   var voice = body.voice;
@@ -100,16 +285,12 @@ async function handleSpeechRequest(request) {
   var role = body.role || "";
   var styleDegree = body.styleDegree !== undefined ? body.styleDegree : 1.0;
   var stream = body.stream || false;
+  var language = typeof body.language === "string" ? body.language.trim() : "";
   var cleaning_options = body.cleaning_options || {};
 
-  var finalVoice;
-  if (model === "tts-1" || model === "tts-1-hd") {
-    finalVoice = OPENAI_VOICE_MAP[voice] || voice || "zh-CN-XiaoxiaoNeural";
-  } else if (model.startsWith("tts-1-")) {
-    finalVoice = OPENAI_VOICE_MAP[model.replace("tts-1-", "")] || "zh-CN-XiaoxiaoNeural";
-  } else {
-    finalVoice = voice || model || "zh-CN-XiaoxiaoNeural";
-  }
+  var resolved = resolveVoiceAndLang(model, voice, language);
+  var finalVoice = resolved.voice;
+  var xmlLang = resolved.lang;
 
   var opts = {
     remove_markdown: cleaning_options.remove_markdown !== undefined ? cleaning_options.remove_markdown : true,
@@ -120,14 +301,17 @@ async function handleSpeechRequest(request) {
     custom_keywords: cleaning_options.custom_keywords || "",
   };
   var cleanedInput = cleanText(input, opts);
+  if (!cleanedInput) {
+    return errorResponse("Input text is empty after cleaning.", 400, "invalid_request_error");
+  }
   var rate = ((speed - 1) * 100).toFixed(0);
   var numPitch = ((pitch - 1) * 100).toFixed(0);
   var outputFormat = "audio-24khz-48kbitrate-mono-mp3";
 
   if (stream) {
-    return await getVoiceStream(cleanedInput, finalVoice, rate, numPitch, style, role, styleDegree, outputFormat, request);
+    return await getVoiceStream(cleanedInput, finalVoice, rate, numPitch, style, role, styleDegree, outputFormat, xmlLang, request);
   }
-  return await getVoice(cleanedInput, finalVoice, rate, numPitch, style, role, styleDegree, outputFormat, request);
+  return await getVoice(cleanedInput, finalVoice, rate, numPitch, style, role, styleDegree, outputFormat, xmlLang, request);
 }
 
 function handleModelsRequest() {
@@ -189,12 +373,12 @@ function splitTextIntoChunks(text, maxChunkSize) {
   return chunks;
 }
 
-async function getVoice(text, voiceName, rate, pitch, style, role, styleDegree, outputFormat, request) {
+async function getVoice(text, voiceName, rate, pitch, style, role, styleDegree, outputFormat, xmlLang, request) {
   var chunks = splitTextIntoChunks(text, 2000);
   var audioChunks = [];
 
   for (var i = 0; i < chunks.length; i++) {
-    var blob = await getAudioChunk(chunks[i], voiceName, rate, pitch, style, role, styleDegree, outputFormat, request);
+    var blob = await getAudioChunk(chunks[i], voiceName, rate, pitch, style, role, styleDegree, outputFormat, xmlLang, request);
     audioChunks.push(blob);
   }
 
@@ -203,7 +387,7 @@ async function getVoice(text, voiceName, rate, pitch, style, role, styleDegree, 
   });
 }
 
-async function getVoiceStream(text, voiceName, rate, pitch, style, role, styleDegree, outputFormat, request) {
+async function getVoiceStream(text, voiceName, rate, pitch, style, role, styleDegree, outputFormat, xmlLang, request) {
   var chunks = splitTextIntoChunks(text, 2000);
   var transform = new TransformStream();
   var writer = transform.writable.getWriter();
@@ -211,7 +395,7 @@ async function getVoiceStream(text, voiceName, rate, pitch, style, role, styleDe
   (async function () {
     try {
       for (var i = 0; i < chunks.length; i++) {
-        var blob = await getAudioChunk(chunks[i], voiceName, rate, pitch, style, role, styleDegree, outputFormat, request);
+        var blob = await getAudioChunk(chunks[i], voiceName, rate, pitch, style, role, styleDegree, outputFormat, xmlLang, request);
         var buffer = await blob.arrayBuffer();
         await writer.write(new Uint8Array(buffer));
       }
@@ -227,7 +411,7 @@ async function getVoiceStream(text, voiceName, rate, pitch, style, role, styleDe
   });
 }
 
-async function getAudioChunk(text, voiceName, rate, pitch, style, role, styleDegree, outputFormat, request) {
+async function getAudioChunk(text, voiceName, rate, pitch, style, role, styleDegree, outputFormat, xmlLang, request) {
   var endpoint = await getEndpoint(request);
   var url = "https://" + endpoint.r + ".tts.speech.microsoft.com/cognitiveservices/v1";
   var escaped = text
@@ -241,13 +425,14 @@ async function getAudioChunk(text, voiceName, rate, pitch, style, role, styleDeg
   if (style && style !== "general") {
     var attr = styleDegree !== 1.0 ? ' styledegree="' + styleDegree + '"' : "";
     content = '<mstts:express-as style="' + style + '"' + attr + ">" + content + "</mstts:express-as>";
-  }
-  if (role) {
+  } else if (role) {
     content = '<mstts:express-as role="' + role + '">' + content + "</mstts:express-as>";
   }
 
   var ssml =
-    '<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" version="1.0" xml:lang="zh-CN"><voice name="' +
+    '<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" version="1.0" xml:lang="' +
+    xmlLang +
+    '"><voice name="' +
     voiceName +
     '">' +
     content +
@@ -397,6 +582,3 @@ function errorResponse(message, status, code) {
   });
 }
 
-function getTestPageHTML() {
-  return '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>TTS 测试</title>\n  <style>\n    * { box-sizing: border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }\n    .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }\n    h1 { text-align: center; color: #333; margin: 0 0 24px; font-size: 24px; }\n    .form-group { margin-bottom: 16px; }\n    label { display: block; font-weight: 500; margin-bottom: 6px; color: #333; }\n    input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }\n    input:focus, select:focus, textarea:focus { outline: none; border-color: #007bff; }\n    textarea { min-height: 100px; resize: vertical; }\n    .row { display: flex; gap: 12px; }\n    .row > * { flex: 1; }\n    .slider-wrap { display: flex; align-items: center; gap: 10px; }\n    .slider-wrap input[type="range"] { flex: 1; }\n    .slider-wrap span { min-width: 40px; text-align: right; font-weight: 500; }\n    .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }\n    .btn-primary { background: #007bff; color: #fff; }\n    .btn-primary:hover { background: #0056b3; }\n    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }\n    #status { margin-top: 16px; padding: 12px; border-radius: 8px; text-align: center; display: none; }\n    .status-error { background: #fee; color: #c00; }\n    .status-success { background: #efe; color: #060; }\n    .status-loading { background: #eef; color: #006; }\n    audio { width: 100%; margin-top: 16px; display: none; }\n    .api-info { margin-top: 20px; padding: 16px; background: #f8f9fa; border-radius: 8px; font-size: 13px; }\n    .api-info code { background: #e9ecef; padding: 2px 6px; border-radius: 4px; }\n  </style>\n</head>\n<body>\n  <div class="container">\n    <h1>TTS 测试</h1>\n    <div class="form-group">\n      <label>API Key</label>\n      <input type="password" id="apiKey" placeholder="输入你的 API Key">\n    </div>\n    <div class="form-group">\n      <label>文本内容</label>\n      <textarea id="text" placeholder="输入要转换的文本...">你好，这是一个语音合成测试。</textarea>\n    </div>\n    <div class="row">\n      <div class="form-group">\n        <label>语音</label>\n        <select id="voice">\n          <option value="shimmer">shimmer - 温柔女声</option>\n          <option value="alloy" selected>alloy - 专业男声</option>\n          <option value="fable">fable - 激情男声</option>\n          <option value="onyx">onyx - 活泼女声</option>\n          <option value="nova">nova - 阳光男声</option>\n          <option value="echo">echo - 东北女声</option>\n        </select>\n      </div>\n      <div class="form-group">\n        <label>语速</label>\n        <div class="slider-wrap">\n          <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">\n          <span id="speedVal">1.0</span>\n        </div>\n      </div>\n    </div>\n    <button class="btn btn-primary" id="generateBtn" onclick="generate()">生成语音</button>\n    <div id="status"></div>\n    <audio id="player" controls></audio>\n    <div class="api-info">\n      <strong>API 端点：</strong><code id="endpoint"></code>\n    </div>\n  </div>\n  <script>\n    var $ = function(id) { return document.getElementById(id); };\n    $("endpoint").textContent = location.origin + "/v1/audio/speech";\n    $("apiKey").value = localStorage.getItem("tts_api_key") || "";\n    $("speed").oninput = function() { $("speedVal").textContent = parseFloat($("speed").value).toFixed(1); };\n    function showStatus(msg, type) {\n      $("status").textContent = msg;\n      $("status").className = "status-" + type;\n      $("status").style.display = "block";\n    }\n    function generate() {\n      var apiKey = $("apiKey").value.trim();\n      var text = $("text").value.trim();\n      if (!apiKey) { showStatus("请输入 API Key", "error"); return; }\n      if (!text) { showStatus("请输入文本", "error"); return; }\n      localStorage.setItem("tts_api_key", apiKey);\n      $("generateBtn").disabled = true;\n      $("player").style.display = "none";\n      showStatus("生成中...", "loading");\n      fetch(location.origin + "/v1/audio/speech", {\n        method: "POST",\n        headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },\n        body: JSON.stringify({ model: "tts-1", voice: $("voice").value, input: text, speed: parseFloat($("speed").value) })\n      }).then(function(res) {\n        if (!res.ok) return res.json().then(function(e) { throw new Error(e.error ? e.error.message : "HTTP " + res.status); });\n        return res.blob();\n      }).then(function(blob) {\n        $("player").src = URL.createObjectURL(blob);\n        $("player").style.display = "block";\n        $("player").play();\n        showStatus("生成成功", "success");\n      }).catch(function(e) {\n        showStatus("错误: " + e.message, "error");\n      }).finally(function() {\n        $("generateBtn").disabled = false;\n      });\n    }\n  </script>\n</body>\n</html>';
-}

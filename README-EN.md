@@ -47,6 +47,7 @@ After deployment, go to Worker settings:
 | Variable name | Value |
 |---------------|-------|
 | `API_KEY` | Your custom key (e.g., `sk-my-secret-key`) |
+| `MAX_TEXT_LENGTH` | (Optional) Max input text length in characters, default `1200` |
 
 > ⚠️ Without setting API Key, the API will return 500 error!
 
@@ -163,7 +164,7 @@ curl "https://your-worker.workers.dev/v1/models" \
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `model` | string | `tts-1` | Model name (compatibility, doesn't affect actual output) |
-| `input` | string | **Required** | Text to convert |
+| `input` | string | **Required** | Text to convert (max 1200 characters) |
 | `voice` | string | `shimmer` | Voice name |
 | `speed` | number | `1.0` | Speech rate (0.5 - 2.0) |
 | `pitch` | number | `1.0` | Pitch (0.5 - 1.5) |
@@ -251,7 +252,11 @@ A: Most likely you haven't set the `API_KEY` environment variable. Just add it i
 
 **Q: Will long texts be truncated?**
 
-A: Nope! The code automatically splits by sentence boundaries intelligently, then stitches them into complete audio 🧠
+A: Input text is limited to 1200 characters (configurable via `MAX_TEXT_LENGTH` environment variable). Exceeding this limit returns a 400 error. The code automatically splits by sentence boundaries intelligently, then stitches them into complete audio 🧠
+
+**Q: Is there an input text length limit?**
+
+A: Yes, the default limit is 1200 characters. This ensures service stability and response speed. You can adjust it by setting `MAX_TEXT_LENGTH` in Worker environment variables.
 
 ## 📄 License
 
